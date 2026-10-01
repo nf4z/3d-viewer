@@ -458,8 +458,10 @@ async function show(kind, opts = {}) {
     if (token === loadToken && t) setIsland(island.dataset.state, { title: $("islandTitle").textContent, sub: $("islandSub").textContent, thumb: t, trail: $("islandTrail").textContent, trailWarn: $("islandTrail").classList.contains("warn") });
   });
 
-  // Outfit edits / try-ons only exist in the rebuilt model.
-  const mode = opts.mode === "rebuilt" ? "rebuilt" : getMode();
+  // Try-on stays on Roblox's official avatar render. Roblox does not expose an
+  // official combined avatar+arbitrary-item 3D endpoint, so never substitute a
+  // distorted rebuilt head/accessory mesh for the official result.
+  const mode = outfit ? "official" : (opts.mode === "rebuilt" ? "rebuilt" : getMode());
   const rebuild = () => (kind === "user"
     ? buildAvatar(id, undefined, outfit ? { add: outfit.add, remove: outfit.remove } : {})
     : buildAsset(id, current.asset.assetTypeId));
@@ -474,6 +476,9 @@ async function show(kind, opts = {}) {
       if (token !== loadToken) return;
       if (off.obj) result = { obj: off.obj, method: "official", meta: off.meta };
       else officialError = off.error;
+    }
+    if (!result && outfit) {
+      throw new Error("Official Roblox renders do not support arbitrary try-on combinations yet. The rebuilt approximation was disabled to prevent distorted accessories.");
     }
     if (!result) {
       setIsland("loading", { title, sub: kind === "user" ? "Rebuilding avatar from items…" : "Rebuilding from item files…" });
