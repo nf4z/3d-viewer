@@ -470,7 +470,7 @@ async function show(kind, opts = {}) {
     let result = null; // { obj, method, meta?, built? }
     let officialError = null;
 
-    if (mode === "official") {
+    if (mode === "official" && !outfit) {
       setIsland("loading", { title, sub: "Requesting official render…" });
       const off = await tryOfficial(kind, id);
       if (token !== loadToken) return;
@@ -478,13 +478,13 @@ async function show(kind, opts = {}) {
       else officialError = off.error;
     }
     if (!result && outfit) {
-      // Roblox has no public combined avatar+arbitrary-item thumbnail endpoint.
-      // Keep the official avatar as the base, then add the selected accessory from
-      // its official asset geometry instead of dropping the try-on selection.
-      setIsland("loading", { title, sub: `Adding ${tried.name} to the official avatar…` });
+      // Roblox has no public combined avatar-3D endpoint. Build the complete
+      // try-on from Roblox's official avatar assets so the selected accessory is
+      // actually present and positioned on the avatar.
+      setIsland("loading", { title, sub: `Adding ${tried.name} to the avatar…` });
       const built = await buildAvatar(id, undefined, { add: outfit.add, remove: outfit.remove });
       if (token !== loadToken) return;
-      if (built) result = { obj: built.object, method: "official", built };
+      if (built) result = { obj: built.object, method: "rebuilt", built };
     }
     if (!result) {
       setIsland("loading", { title, sub: kind === "user" ? "Rebuilding avatar from items…" : "Rebuilding from item files…" });
