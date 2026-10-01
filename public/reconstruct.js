@@ -149,7 +149,7 @@ function faceRect(face, regions, t0, t1) {
   return [rx, ry, rw, rh];
 }
 // (sr, su) in [-1,1] across the face -> template UV
-const rectUV = ([rx, ry, rw, rh], sr, su) => [(rx + ((sr + 1) / 2) * rw) / TEMPLATE_W, 1 - (ry + (1 - (su + 1) / 2) * rh) / TEMPLATE_H];
+// Keep bilinear filtering inside each template island. Without this inset, the atlas\n// samples adjacent white padding at clothing seams and produces bright hairlines.\nconst rectUV = ([rx, ry, rw, rh], sr, su) => {\n  const inset = 0.75;\n  const x = rx + inset + ((sr + 1) / 2) * Math.max(0, rw - inset * 2);\n  const y = ry + inset + (1 - (su + 1) / 2) * Math.max(0, rh - inset * 2);\n  return [x / TEMPLATE_W, 1 - y / TEMPLATE_H];\n};
 
 // Box whose faces are UV-mapped onto a template region; [t0,t1] selects a vertical slice.
 function templateBox(size, regions, t0, t1) {
@@ -313,7 +313,7 @@ async function partVisual(node, ctx, look = {}) {
     if (clothes && look.def.regions) {
       // Clothing overlay: same surface, template box-projected (see projectTemplate).
       const overlay = new THREE.Mesh(projectTemplate(geom, REGIONS[look.def.regions], ...look.def.slice),
-        standardMaterial({ map: textureFrom(clothes), transparent: true, alphaTest: 0.02, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+        standardMaterial({ map: textureFrom(clothes), transparent: true, alphaTest: 0.08, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4, roughness: 0.92 }));
       const base = new THREE.Mesh(geom, material);
       const grp = new THREE.Group();
       grp.name = node.name;

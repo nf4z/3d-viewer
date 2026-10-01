@@ -9,11 +9,7 @@ const KEY_STORAGE = "roblox3d.apiKey";
 // ---- Three.js scene ------------------------------------------------------------
 
 const canvas = $("canvas");
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });\nrenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));\nrenderer.outputColorSpace = THREE.SRGBColorSpace;\nrenderer.toneMapping = THREE.ACESFilmicToneMapping;\nrenderer.toneMappingExposure = 1.15;\nrenderer.shadowMap.enabled = true;\nrenderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(35, 1, 0.01, 5000);
@@ -24,16 +20,7 @@ controls.autoRotate = true;
 controls.autoRotateSpeed = 1.2;
 controls.enablePan = false;
 
-scene.add(new THREE.HemisphereLight(0xffffff, 0x3a3a40, 1.5));
-const keyLight = new THREE.DirectionalLight(0xffffff, 1.7);
-keyLight.position.set(1.2, 2, -1.6);
-scene.add(keyLight);
-const fill = new THREE.DirectionalLight(0xdfe8ff, 0.6);
-fill.position.set(-2, 1, -1);
-scene.add(fill);
-const rim = new THREE.DirectionalLight(0xffffff, 0.9);
-rim.position.set(0, 2, 3);
-scene.add(rim);
+scene.add(new THREE.HemisphereLight(0xf4f7ff, 0x151923, 1.05));\nconst keyLight = new THREE.DirectionalLight(0xfff4e8, 2.4);\nkeyLight.position.set(2.5, 4.5, -3.5);\nkeyLight.castShadow = true;\nkeyLight.shadow.mapSize.set(2048, 2048);\nkeyLight.shadow.camera.near = 0.1;\nkeyLight.shadow.camera.far = 30;\nkeyLight.shadow.bias = -0.0003;\nscene.add(keyLight);\nconst fill = new THREE.DirectionalLight(0xb8d4ff, 0.75);\nfill.position.set(-3, 2, -2);\nscene.add(fill);\nconst rim = new THREE.DirectionalLight(0xdbe7ff, 1.35);\nrim.position.set(1, 3, 4);\nscene.add(rim);
 
 // Soft contact shadow under the model.
 const shadowTex = (() => {
@@ -48,7 +35,7 @@ const shadowTex = (() => {
   g.fillRect(0, 0, 256, 256);
   return new THREE.CanvasTexture(c);
 })();
-const shadow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false }));
+const shadow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false, opacity: 0.72 }));\nshadow.receiveShadow = true;
 shadow.rotation.x = -Math.PI / 2;
 shadow.visible = false;
 scene.add(shadow);
@@ -136,8 +123,7 @@ function setModel(obj, { keepCamera = false } = {}) {
     o.userData.baseOpacity = mats.map((m) => m.opacity);
     o.userData.restoreOpaque = mats.map((m) => { const was = !m.transparent; m.transparent = true; return was; });
   });
-  scene.add(obj);
-  // Rigged models get extra room so animated limbs stay in frame.
+  obj.traverse((o) => {\n    if (!o.isMesh) return;\n    o.castShadow = true;\n    o.receiveShadow = true;\n  });\n  scene.add(obj);\n  // Rigged models get extra room so animated limbs stay in frame.
   if (keepCamera && homeView) obj.userData.keepScale = true;
   else frameModel(obj, obj.userData.animatable ? 1.3 : 1.08);
   appear = 0;
