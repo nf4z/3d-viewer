@@ -149,7 +149,14 @@ function faceRect(face, regions, t0, t1) {
   return [rx, ry, rw, rh];
 }
 // (sr, su) in [-1,1] across the face -> template UV
-// Keep bilinear filtering inside each template island. Without this inset, the atlas\n// samples adjacent white padding at clothing seams and produces bright hairlines.\nconst rectUV = ([rx, ry, rw, rh], sr, su) => {\n  const inset = 0.75;\n  const x = rx + inset + ((sr + 1) / 2) * Math.max(0, rw - inset * 2);\n  const y = ry + inset + (1 - (su + 1) / 2) * Math.max(0, rh - inset * 2);\n  return [x / TEMPLATE_W, 1 - y / TEMPLATE_H];\n};
+// Keep bilinear filtering inside each template island. Without this inset, the atlas
+// samples adjacent white padding at clothing seams and produces bright hairlines.
+const rectUV = ([rx, ry, rw, rh], sr, su) => {
+  const inset = 0.75;
+  const x = rx + inset + ((sr + 1) / 2) * Math.max(0, rw - inset * 2);
+  const y = ry + inset + (1 - (su + 1) / 2) * Math.max(0, rh - inset * 2);
+  return [x / TEMPLATE_W, 1 - y / TEMPLATE_H];
+};
 
 // Box whose faces are UV-mapped onto a template region; [t0,t1] selects a vertical slice.
 function templateBox(size, regions, t0, t1) {
