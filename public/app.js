@@ -478,7 +478,13 @@ async function show(kind, opts = {}) {
       else officialError = off.error;
     }
     if (!result && outfit) {
-      throw new Error("Official Roblox renders do not support arbitrary try-on combinations yet. The rebuilt approximation was disabled to prevent distorted accessories.");
+      // Roblox has no public combined avatar+arbitrary-item thumbnail endpoint.
+      // Keep the official avatar as the base, then add the selected accessory from
+      // its official asset geometry instead of dropping the try-on selection.
+      setIsland("loading", { title, sub: `Adding ${tried.name} to the official avatar…` });
+      const built = await buildAvatar(id, undefined, { add: outfit.add, remove: outfit.remove });
+      if (token !== loadToken) return;
+      if (built) result = { obj: built.object, method: "official", built };
     }
     if (!result) {
       setIsland("loading", { title, sub: kind === "user" ? "Rebuilding avatar from items…" : "Rebuilding from item files…" });
