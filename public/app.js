@@ -408,10 +408,7 @@ const MODE_STORAGE = "roblox3d.mode";
 // Roblox's official OBJ render is the fidelity-first path: it preserves the exact
 // proportions, accessory placement, and clothing texture projection used by Roblox.
 // Rebuilt mode remains available for animation and try-on editing.
-const getMode = () => {
-  const saved = localStorage.getItem(MODE_STORAGE);
-  return saved === "rebuilt" ? "rebuilt" : "official";
-};
+const getMode = () => "official";
 let serverCfg = null;
 const hasCredentials = async () => {
   serverCfg = serverCfg || await fetch("/api/config").then((r) => r.json()).catch(() => ({}));
@@ -462,8 +459,7 @@ async function show(kind, opts = {}) {
   });
 
   // Outfit edits / try-ons only exist in the rebuilt model.
-  const edited = outfit && (outfit.add.length || outfit.remove.size);
-  const mode = opts.mode || (edited ? "rebuilt" : getMode());
+  const mode = opts.mode === "rebuilt" ? "rebuilt" : getMode();
   const rebuild = () => (kind === "user"
     ? buildAvatar(id, undefined, outfit ? { add: outfit.add, remove: outfit.remove } : {})
     : buildAsset(id, current.asset.assetTypeId));
