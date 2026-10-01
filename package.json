@@ -1,0 +1,13 @@
+{
+  "name": "roblox-3d-viewer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Load the 3D model of a Roblox user avatar or asset by ID",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#1c1c1e" />
+  <title>Roblox 3D Viewer</title>
+  <link rel="stylesheet" href="/style.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+
+  <!-- Dynamic Island -->
+  <div id="island" class="island" data-state="idle">
+    <form id="search" class="island-search" autocomplete="off">
+      <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" spellcheck="false" placeholder="Search user, asset ID, or link" />
+      <kbd>/</kbd>
+    </form>
+    <div class="island-activity" id="activity">
+      <span class="island-lead"><span class="ring"></span><img id="islandThumb" alt="" /></span>
+      <span class="island-text">
+        <span id="islandTitle"></span>
+        <span id="islandSub"></span>
+      </span>
+      <span class="island-trail" id="islandTrail"></span>
+    </div>
+  </div>
+
+  <div id="history" class="history glass" hidden>
+    <div class="history-head"><span>Recent</span><button id="clearHistory" class="text-btn">Clear</button></div>
+    <ul id="historyList"></ul>
+  </div>
+
+  <div id="segment" class="segment" hidden></div>
+
+  <!-- Empty state -->
+  <section id="empty" class="empty">
+    <h1>View any Roblox avatar<br />or item in 3D</h1>
+    <p>Enter a username, user ID, asset ID, or roblox.com link.</p>
+    <div class="chips">
+      <button data-q="Roblox">Roblox</button>
+      <button data-q="builderman">builderman</button>
+      <button data-q="1029025">Classic Fedora</button>
+      <button data-q="119934643965525">Starwisp</button>
+    </div>
+  </section>
+
+  <!-- Info card -->
+  <aside id="card" class="card glass" hidden>
+    <div class="card-head">
+      <img id="cardThumb" alt="" />
+      <div>
+        <div id="cardTitle" class="card-title"></div>
+        <div id="cardSub" class="card-sub"></div>
+      </div>
+    </div>
+    <div id="cardBadges" class="badges"></div>
+    <button id="tryOnBtn" class="tryon-btn" hidden>
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"/><path d="M4 21v-1a7 7 0 0 1 14 0v1"/></svg>
+      Try on an avatar
+    </button>
+    <details id="outfitBox" hidden>
+      <summary><span id="outfitSummary"></span><button id="outfitReset" class="text-btn small" hidden>Reset</button></summary>
+      <ul id="outfit"></ul>
+    </details>
+    <details id="warnBox" hidden>
+      <summary id="warnSummary"></summary>
+      <ul id="warnings"></ul>
+    </details>
+  </aside>
+
+  <!-- Controls -->
+  <nav id="controls" class="controls glass">
+    <button id="rotate" class="ctl on" title="Auto-rotate">
+      <svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg>
+    </button>
+    <button id="lockBtn" class="ctl" title="Lock view">
+      <svg class="unlocked" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/></svg>
+      <svg class="locked" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+    </button>
+    <button id="resetView" class="ctl" title="Reset view">
+      <svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 15v5h-5M4 4l6 6M20 20l-6-6"/></svg>
+    </button>
+    <div class="menu-wrap">
+      <button id="animBtn" class="ctl" title="Animation">
+        <svg viewBox="0 0 24 24"><circle cx="13.5" cy="4.5" r="1.8"/><path d="M9 21l2.2-5.2L14 18v3M7 12l2.5-3.5 4-.5 2.5 3 3 1M11.2 15.8 12.5 9"/></svg>
+      </button>
+      <div id="animMenu" class="menu glass" hidden>
+        <div class="menu-title">Animation</div>
+        <button data-anim="none" class="active">None</button>
+        <button data-anim="idle">Idle</button>
+        <button data-anim="walk">Walk</button>
+        <button data-anim="run">Run</button>
+        <button data-anim="jump">Jump</button>
+        <button data-anim="fall">Fall</button>
+        <button data-anim="climb">Climb</button>
+        <button data-anim="swim">Swim</button>
+      </div>
+    </div>
+    <div class="menu-wrap">
+      <button id="download" class="ctl" title="Download files" disabled>
+        <svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+      </button>
+      <div id="files" class="menu glass" hidden></div>
+    </div>
+    <span class="sep"></span>
+    <button id="openSettings" class="ctl" title="Settings">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    </button>
+  </nav>
+
+  <!-- 2D fallback -->
+  <img id="fallback" class="fallback" alt="" hidden />
+
+  <!-- Settings sheet -->
+  <div id="sheet" class="sheet-backdrop" hidden>
+    <div class="sheet glass" role="dialog" aria-label="Settings">
+      <div class="sheet-head">
+        <h2>Settings</h2>
+        <button id="closeSettings" class="text-btn">Done</button>
+      </div>
+      <div class="group">
+        <div class="row column">
+          <span class="row-title">Render mode</span>
+          <div id="modePicker" class="seg-inline">
+            <button data-mode="auto">Auto</button>
+            <button data-mode="rebuilt">Rebuilt</button>
+            <button data-mode="official">Official</button>
+          </div>
+          <span id="modeHint" class="row-sub"></span>
+        </div>
+      </div>
+      <div class="group">
+        <div class="row column">
+          <span class="row-title">Open Cloud API key</span>
+          <span class="row-sub">Optional. Unlocks items Roblox only serves to signed-in users.
+            <a href="https://create.roblox.com/dashboard/credentials" target="_blank" rel="noopener">Create a key</a> with
+            <b>legacy-asset → manage</b> (downloads protected items) and <b>thumbnails → read</b> (official 3D renders).</span>
+          <div class="key-row">
+            <input id="apiKey" type="password" placeholder="Paste API key" autocomplete="off" />
+            <button id="saveKey" class="pill-btn">Save</button>
+          </div>
+          <span id="keyStatus" class="row-sub"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Try-on sheet -->
+  <div id="tryOnSheet" class="sheet-backdrop" hidden>
+    <div class="sheet glass" role="dialog" aria-label="Try on">
+      <div class="sheet-head">
+        <h2>Try on</h2>
+        <button id="closeTryOn" class="text-btn">Cancel</button>
+      </div>
+      <p class="row-sub" id="tryOnItem"></p>
+      <form id="tryOnForm" class="key-row">
+        <input id="tryOnUser" placeholder="Username or user ID" autocomplete="off" spellcheck="false" />
+        <button class="pill-btn" type="submit">Apply</button>
+      </form>
+      <p id="tryOnError" class="row-sub error-text"></p>
+      <div id="tryOnRecent" class="recent-users"></div>
+    </div>
+  </div>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
