@@ -26,9 +26,10 @@ controls.autoRotate = true;
 controls.autoRotateSpeed = 1.2;
 controls.enablePan = false;
 
-scene.add(new THREE.HemisphereLight(0xf4f7ff, 0x151923, 1.05));
-const keyLight = new THREE.DirectionalLight(0xfff4e8, 2.4);
-keyLight.position.set(2.5, 4.5, -3.5);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x30343d, 1.45));
+scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+const keyLight = new THREE.DirectionalLight(0xfff8ef, 2.1);
+keyLight.position.set(-2.5, 4.5, -5);
 keyLight.castShadow = true;
 keyLight.shadow.mapSize.set(2048, 2048);
 keyLight.shadow.camera.near = 0.1;
@@ -146,8 +147,10 @@ function setModel(obj, { keepCamera = false } = {}) {
   });
   obj.traverse((o) => {
     if (!o.isMesh) return;
-    o.castShadow = true;
-    o.receiveShadow = true;
+    // Official Roblox renders use soft baked-style shading; avoid adding a second
+    // hard shadow pass that makes dark clothing read nearly black.
+    o.castShadow = false;
+    o.receiveShadow = false;
   });
   scene.add(obj);
   // Rigged models get extra room so animated limbs stay in frame.
@@ -227,14 +230,18 @@ async function loadOfficial(meta) {
     const key = hash + srgb;
     if (!texCache[key]) {
       texCache[key] = texLoader.load(`/cdn/${hash}`);
-      if (srgb) texCache[key].colorSpace = THREE.SRGBColorSpace;
+      texCache[key].colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+      texCache[key].minFilter = THREE.LinearMipmapLinearFilter;
+      texCache[key].magFilter = THREE.LinearFilter;
+      texCache[key].anisotropy = renderer.capabilities.getMaxAnisotropy();
+      texCache[key].needsUpdate = true;
     }
     return texCache[key];
   };
   const make = (name) => {
     const info = infos[name] || {};
     const num3 = (v) => v.split(/\s+/).slice(0, 3).map(Number);
-    const m = new THREE.MeshStandardMaterial({ name, metalness: 0, roughness: 1, side: info.rbx_doublesided === "1" ? THREE.DoubleSide : THREE.FrontSide });
+    const m = new THREE.MeshStandardMaterial({ name, metalness: 0, roughness: 0.86, envMapIntensity: 0.7, side: info.rbx_doublesided === "1" ? THREE.DoubleSide : THREE.FrontSide });
     if (info.kd) m.color.setRGB(...num3(info.kd), THREE.SRGBColorSpace);
     if (info.ke) m.emissive.setRGB(...num3(info.ke), THREE.SRGBColorSpace);
     if (info.map_kd) m.map = tex(info.map_kd, true);
