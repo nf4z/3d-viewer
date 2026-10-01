@@ -398,7 +398,13 @@ function renderCard(kind, { method, info, warnings, effects, note }) {
 // official render when items are missing; "rebuilt" / "official" force one method.
 
 const MODE_STORAGE = "roblox3d.mode";
-// Roblox's official OBJ render is the fidelity-first path: it preserves the exact\n// proportions, accessory placement, and clothing texture projection used by Roblox.\n// Rebuilt mode remains available for animation and try-on editing.\nconst getMode = () => {\n  const saved = localStorage.getItem(MODE_STORAGE);\n  return saved === "rebuilt" ? "rebuilt" : "official";\n};
+// Roblox's official OBJ render is the fidelity-first path: it preserves the exact
+// proportions, accessory placement, and clothing texture projection used by Roblox.
+// Rebuilt mode remains available for animation and try-on editing.
+const getMode = () => {
+  const saved = localStorage.getItem(MODE_STORAGE);
+  return saved === "rebuilt" ? "rebuilt" : "official";
+};
 let serverCfg = null;
 const hasCredentials = async () => {
   serverCfg = serverCfg || await fetch("/api/config").then((r) => r.json()).catch(() => ({}));
