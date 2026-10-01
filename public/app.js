@@ -13,7 +13,9 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true 
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMappingExposure = 1.15;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(35, 1, 0.01, 5000);
@@ -24,15 +26,21 @@ controls.autoRotate = true;
 controls.autoRotateSpeed = 1.2;
 controls.enablePan = false;
 
-scene.add(new THREE.HemisphereLight(0xffffff, 0x3a3a40, 1.5));
-const keyLight = new THREE.DirectionalLight(0xffffff, 1.7);
-keyLight.position.set(1.2, 2, -1.6);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x30343d, 1.45));
+scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+const keyLight = new THREE.DirectionalLight(0xfff8ef, 2.1);
+keyLight.position.set(-2.5, 4.5, -5);
+keyLight.castShadow = true;
+keyLight.shadow.mapSize.set(2048, 2048);
+keyLight.shadow.camera.near = 0.1;
+keyLight.shadow.camera.far = 30;
+keyLight.shadow.bias = -0.0003;
 scene.add(keyLight);
-const fill = new THREE.DirectionalLight(0xdfe8ff, 0.6);
-fill.position.set(-2, 1, -1);
+const fill = new THREE.DirectionalLight(0xb8d4ff, 0.75);
+fill.position.set(-3, 2, -2);
 scene.add(fill);
-const rim = new THREE.DirectionalLight(0xffffff, 0.9);
-rim.position.set(0, 2, 3);
+const rim = new THREE.DirectionalLight(0xdbe7ff, 1.35);
+rim.position.set(1, 3, 4);
 scene.add(rim);
 
 // Soft contact shadow under the model.
@@ -48,7 +56,8 @@ const shadowTex = (() => {
   g.fillRect(0, 0, 256, 256);
   return new THREE.CanvasTexture(c);
 })();
-const shadow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false }));
+const shadow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false, opacity: 0.72 }));
+shadow.receiveShadow = true;
 shadow.rotation.x = -Math.PI / 2;
 shadow.visible = false;
 scene.add(shadow);
@@ -136,6 +145,13 @@ function setModel(obj, { keepCamera = false } = {}) {
     o.userData.baseOpacity = mats.map((m) => m.opacity);
     o.userData.restoreOpaque = mats.map((m) => { const was = !m.transparent; m.transparent = true; return was; });
   });
+  obj.traverse((o) => {
+    if (!o.isMesh) return;
+    // Official Roblox renders use soft baked-style shading; avoid adding a second
+    // hard shadow pass that makes dark clothing read nearly black.
+    o.castShadow = false;
+    o.receiveShadow = false;
+  });
   scene.add(obj);
   // Rigged models get extra room so animated limbs stay in frame.
   if (keepCamera && homeView) obj.userData.keepScale = true;
@@ -214,14 +230,18 @@ async function loadOfficial(meta) {
     const key = hash + srgb;
     if (!texCache[key]) {
       texCache[key] = texLoader.load(`/cdn/${hash}`);
-      if (srgb) texCache[key].colorSpace = THREE.SRGBColorSpace;
+      texCache[key].colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+      texCache[key].minFilter = THREE.LinearMipmapLinearFilter;
+      texCache[key].magFilter = THREE.LinearFilter;
+      texCache[key].anisotropy = renderer.capabilities.getMaxAnisotropy();
+      texCache[key].needsUpdate = true;
     }
     return texCache[key];
   };
   const make = (name) => {
     const info = infos[name] || {};
     const num3 = (v) => v.split(/\s+/).slice(0, 3).map(Number);
-    const m = new THREE.MeshStandardMaterial({ name, metalness: 0, roughness: 1, side: info.rbx_doublesided === "1" ? THREE.DoubleSide : THREE.FrontSide });
+    const m = new THREE.MeshStandardMaterial({ name, metalness: 0, roughness: 0.86, envMapIntensity: 0.7, side: info.rbx_doublesided === "1" ? THREE.DoubleSide : THREE.FrontSide });
     if (info.kd) m.color.setRGB(...num3(info.kd), THREE.SRGBColorSpace);
     if (info.ke) m.emissive.setRGB(...num3(info.ke), THREE.SRGBColorSpace);
     if (info.map_kd) m.map = tex(info.map_kd, true);
@@ -385,7 +405,10 @@ function renderCard(kind, { method, info, warnings, effects, note }) {
 // official render when items are missing; "rebuilt" / "official" force one method.
 
 const MODE_STORAGE = "roblox3d.mode";
-const getMode = () => localStorage.getItem(MODE_STORAGE) || "auto";
+// Roblox's official OBJ render is the fidelity-first path: it preserves the exact
+// proportions, accessory placement, and clothing texture projection used by Roblox.
+// Rebuilt mode remains available for animation and try-on editing.
+const getMode = () => "official";
 let serverCfg = null;
 const hasCredentials = async () => {
   serverCfg = serverCfg || await fetch("/api/config").then((r) => r.json()).catch(() => ({}));
@@ -435,9 +458,10 @@ async function show(kind, opts = {}) {
     if (token === loadToken && t) setIsland(island.dataset.state, { title: $("islandTitle").textContent, sub: $("islandSub").textContent, thumb: t, trail: $("islandTrail").textContent, trailWarn: $("islandTrail").classList.contains("warn") });
   });
 
-  // Outfit edits / try-ons only exist in the rebuilt model.
-  const edited = outfit && (outfit.add.length || outfit.remove.size);
-  const mode = opts.mode || (edited ? "rebuilt" : getMode());
+  // Try-on stays on Roblox's official avatar render. Roblox does not expose an
+  // official combined avatar+arbitrary-item 3D endpoint, so never substitute a
+  // distorted rebuilt head/accessory mesh for the official result.
+  const mode = outfit ? "official" : (opts.mode === "rebuilt" ? "rebuilt" : getMode());
   const rebuild = () => (kind === "user"
     ? buildAvatar(id, undefined, outfit ? { add: outfit.add, remove: outfit.remove } : {})
     : buildAsset(id, current.asset.assetTypeId));
@@ -446,12 +470,21 @@ async function show(kind, opts = {}) {
     let result = null; // { obj, method, meta?, built? }
     let officialError = null;
 
-    if (mode === "official") {
+    if (mode === "official" && !outfit) {
       setIsland("loading", { title, sub: "Requesting official render…" });
       const off = await tryOfficial(kind, id);
       if (token !== loadToken) return;
       if (off.obj) result = { obj: off.obj, method: "official", meta: off.meta };
       else officialError = off.error;
+    }
+    if (!result && outfit) {
+      // Roblox has no public combined avatar-3D endpoint. Build the complete
+      // try-on from Roblox's official avatar assets so the selected accessory is
+      // actually present and positioned on the avatar.
+      setIsland("loading", { title, sub: `Adding ${tried.name} to the avatar…` });
+      const built = await buildAvatar(id, undefined, { add: outfit.add, remove: outfit.remove });
+      if (token !== loadToken) return;
+      if (built) result = { obj: built.object, method: "rebuilt", built };
     }
     if (!result) {
       setIsland("loading", { title, sub: kind === "user" ? "Rebuilding avatar from items…" : "Rebuilding from item files…" });
